@@ -180,6 +180,9 @@ export class InvoiceService {
 
       return this.mapRowToInvoice(result.rows[0]);
     } catch (error: any) {
+      if (error instanceof ConflictError) {
+        throw error;
+      }
       console.error('Error marking invoice as paid:', error);
       throw new Error(`Failed to update invoice: ${error.message}`);
     }

@@ -6,6 +6,7 @@ import type { StoredInvoice } from '../storage/invoice-storage';
 import { compareNewestFirst, isAfterCursor, type InvoiceCursor } from '../storage/invoice-cursor';
 import type { InvoiceStats } from '../storage/invoice-stats';
 import type { PayerInfo } from '../storage/invoice-storage';
+import { checkVersion } from '../concurrency/optimistic-lock';
 
 export class InvoiceMemoryService {
   constructor(private readonly storage: MemoryStorage = memoryStorage) {}
@@ -55,6 +56,11 @@ export class InvoiceMemoryService {
     payerInfo?: PayerInfo,
     expectedVersion?: number
   ): Promise<StoredInvoice> {
+    const existing = this.storage.getInvoiceById(invoiceId);
+    if (existing && expectedVersion !== undefined) {
+      checkVersion(expectedVersion, existing.version ?? 1);
+    }
+
     const invoice = this.storage.markAsPaid(invoiceId, txHash, payerPublicKey, payerInfo, expectedVersion);
 
     if (!invoice) {
@@ -87,7 +93,15 @@ export class InvoiceMemoryService {
   async cancelInvoice(invoiceId: string, expectedVersion?: number): Promise<StoredInvoice> {
     const invoice = this.storage.getInvoiceById(invoiceId);
 
-    if (!invoice || invoice.status !== 'PENDING') {
+    if (!invoice) {
+      throw new Error('Invoice not found or already processed');
+    }
+
+    if (expectedVersion !== undefined) {
+      checkVersion(expectedVersion, invoice.version ?? 1);
+    }
+
+    if (invoice.status !== 'PENDING') {
       throw new Error('Invoice not found or already processed');
     }
 

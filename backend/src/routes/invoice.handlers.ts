@@ -783,6 +783,23 @@ export function createInvoiceHandlers(options: InvoiceHandlerOptions): InvoiceHa
         });
       } catch (error: any) {
         const duration = performance.now() - start;
+
+        if (error instanceof ConflictError) {
+          metrics.recordOperation({
+            operation: 'invoice.verify_payment',
+            actor_type: 'payer',
+            result: 'failure',
+            latency_ms: duration,
+            correlation_id: corrId,
+            http_status: 409,
+            error_code: 'CONFLICT',
+          });
+          return sendFailure(res, 409, error.message, {
+            code: 'CONFLICT',
+            correlationId: corrId,
+          });
+        }
+
         logError('Verify payment error:', error);
         const classified = classifyError(error);
 

@@ -32,6 +32,14 @@ export class InvoiceLockManager {
       releaseLock();
     };
   }
+
+  isLocked(invoiceId: string): boolean {
+    return this.locks.has(invoiceId);
+  }
+
+  get activeLocks(): number {
+    return this.locks.size;
+  }
 }
 
 export const invoiceLockManager = new InvoiceLockManager();
